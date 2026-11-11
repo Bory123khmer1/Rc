@@ -1,0 +1,6 @@
+{
+  "name": "RC Playground Admin",
+  "description": "Mobile-first administration dashboard for ESP32 Master and ESP-NOW RC car remote relay timers, session control, and revenue tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
