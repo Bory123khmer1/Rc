@@ -245,6 +245,31 @@ export const SessionManagementView: React.FC<SessionManagementViewProps> = ({
                 );
               })}
             </div>
+
+            {/* Direct Custom Minutes Input */}
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-3">
+              <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                {t.sessionControl.minutes}:
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={240}
+                  value={selectedDuration}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 240) {
+                      onSelectDuration(parsed);
+                    }
+                  }}
+                  className="w-20 min-h-[38px] px-3 py-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-center font-mono text-sm font-bold tabular-nums text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                />
+                <span className="text-xs font-medium text-zinc-500">
+                  {t.sessionControl.minShort}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">

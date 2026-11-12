@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CheckCircle2,
+  Minus,
   Play,
+  Plus,
   Radio,
   Settings2,
   Square,
@@ -56,6 +58,14 @@ export const CarCard: React.FC<CarCardProps> = ({
   onEditCar,
   onToggleDemoOnline,
 }) => {
+  const [customMinutesText, setCustomMinutesText] = useState<string>(
+    String(selectedDuration)
+  );
+
+  useEffect(() => {
+    setCustomMinutesText(String(selectedDuration));
+  }, [selectedDuration]);
+
   const isOnline = car.connectionStatus === 'ONLINE';
   const isInUse = car.availability === 'IN_USE' || Boolean(activeSession);
   const isAvailable = isOnline && !isInUse;
@@ -251,29 +261,95 @@ export const CarCard: React.FC<CarCardProps> = ({
         </div>
       </div>
 
-      {/* Quick Duration Selector Row (when car is idle) */}
+      {/* Quick Duration Selector Row + Custom Minutes Input (when car is idle) */}
       {!activeSession && onSelectDuration && (
         <div
-          className="grid grid-cols-4 gap-1.5"
+          className="space-y-2"
           onClick={(e) => e.stopPropagation()}
         >
-          {availableDurations.map((mins) => {
-            const active = selectedDuration === mins;
-            return (
+          <div className="grid grid-cols-4 gap-1.5">
+            {availableDurations.map((mins) => {
+              const active = selectedDuration === mins;
+              return (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => onSelectDuration(mins, car)}
+                  className={`min-h-[40px] py-1.5 px-2 rounded-xl font-mono text-xs font-bold tabular-nums transition-colors cursor-pointer border ${
+                    active
+                      ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-zinc-950 dark:border-white'
+                      : 'bg-zinc-100/80 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 border-transparent hover:border-zinc-300 dark:hover:border-zinc-700'
+                  }`}
+                >
+                  {mins} {t.sessionControl.minShort}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Direct Custom Minutes Input */}
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 px-3 py-1.5">
+            <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+              {t.sessionControl.minutes}:
+            </span>
+
+            <div className="flex items-center gap-1.5">
               <button
-                key={mins}
                 type="button"
-                onClick={() => onSelectDuration(mins, car)}
-                className={`min-h-[40px] py-1.5 px-2 rounded-xl font-mono text-xs font-bold tabular-nums transition-colors cursor-pointer border ${
-                  active
-                    ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-zinc-950 dark:border-white'
-                    : 'bg-zinc-100/80 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 border-transparent hover:border-zinc-300 dark:hover:border-zinc-700'
-                }`}
+                onClick={() => {
+                  const next = Math.max(1, selectedDuration - 1);
+                  onSelectDuration(next, car);
+                }}
+                className="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center cursor-pointer"
+                aria-label="Decrease minutes"
               >
-                {mins} {t.sessionControl.minShort}
+                <Minus className="w-3.5 h-3.5" />
               </button>
-            );
-          })}
+
+              <input
+                type="number"
+                min={1}
+                max={240}
+                value={customMinutesText}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomMinutesText(val);
+                  const parsed = parseInt(val, 10);
+                  if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 240) {
+                    onSelectDuration(parsed, car);
+                  }
+                }}
+                onBlur={() => {
+                  const parsed = parseInt(customMinutesText, 10);
+                  if (Number.isNaN(parsed) || parsed < 1) {
+                    setCustomMinutesText(String(selectedDuration));
+                  } else {
+                    const clamped = Math.min(240, Math.max(1, parsed));
+                    setCustomMinutesText(String(clamped));
+                    onSelectDuration(clamped, car);
+                  }
+                }}
+                placeholder="5"
+                className="w-16 h-8 px-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-center font-mono text-sm font-bold tabular-nums text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500"
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  const next = Math.min(240, selectedDuration + 1);
+                  onSelectDuration(next, car);
+                }}
+                className="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center cursor-pointer"
+                aria-label="Increase minutes"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 pl-0.5">
+                {t.sessionControl.minShort}
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
