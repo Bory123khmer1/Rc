@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BellRing,
   Globe,
@@ -11,6 +11,7 @@ import {
 import { CarCard } from './components/CarCard';
 import {
   playAlertTone,
+  playTestSound,
   startTimeUpAlarm,
   stopTimeUpAlarm,
   unlockAudioContext,
@@ -99,7 +100,11 @@ export default function App() {
     setSoundEnabled((prev) => {
       const next = !prev;
       safeSetStorage(STORAGE_KEYS.SOUND, String(next));
-      if (!next) stopTimeUpAlarm();
+      if (!next) {
+        stopTimeUpAlarm();
+      } else {
+        playAlertTone('start', true);
+      }
       return next;
     });
   };
@@ -156,6 +161,26 @@ export default function App() {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [timeUpAlerts, setTimeUpAlerts] = useState<TimeUpAlert[]>([]);
 
+  const runningTimersRef = useRef(runningTimers);
+  runningTimersRef.current = runningTimers;
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
+
+  // Unlock browser audio on the very first touch/click anywhere on the page
+  useEffect(() => {
+    const handleUnlock = () => {
+      unlockAudioContext();
+    };
+    window.addEventListener('pointerdown', handleUnlock, { passive: true });
+    window.addEventListener('touchstart', handleUnlock, { passive: true });
+    window.addEventListener('keydown', handleUnlock, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', handleUnlock);
+      window.removeEventListener('touchstart', handleUnlock);
+      window.removeEventListener('keydown', handleUnlock);
+    };
+  }, []);
+
   const handleDismissTimeUp = useCallback((carId?: number) => {
     setTimeUpAlerts((prev) => {
       const next =
@@ -181,14 +206,19 @@ export default function App() {
     const totalSeconds = minutes * 60;
     const now = Date.now();
     setNowMs(now);
+    const nextTimer: RunningTimer = {
+      carId,
+      durationMinutes: minutes,
+      totalSeconds,
+      endAt: now + totalSeconds * 1000,
+    };
+    runningTimersRef.current = {
+      ...runningTimersRef.current,
+      [carId]: nextTimer,
+    };
     setRunningTimers((prev) => ({
       ...prev,
-      [carId]: {
-        carId,
-        durationMinutes: minutes,
-        totalSeconds,
-        endAt: now + totalSeconds * 1000,
-      },
+      [carId]: nextTimer,
     }));
     playAlertTone('start', soundEnabled);
   };
@@ -196,6 +226,11 @@ export default function App() {
   const handleStop = (carId: number) => {
     unlockAudioContext();
     handleDismissTimeUp(carId);
+    if (runningTimersRef.current[carId]) {
+      const nextRef = { ...runningTimersRef.current };
+      delete nextRef[carId];
+      runningTimersRef.current = nextRef;
+    }
     setRunningTimers((prev) => {
       if (!prev[carId]) return prev;
       const next = { ...prev };
@@ -208,8 +243,17 @@ export default function App() {
   const handleStopAll = () => {
     unlockAudioContext();
     handleDismissTimeUp();
+    runningTimersRef.current = {};
     setRunningTimers({});
     playAlertTone('stopAll', soundEnabled);
+  };
+
+  const handleTestSound = () => {
+    if (!soundEnabled) {
+      setSoundEnabled(true);
+      safeSetStorage(STORAGE_KEYS.SOUND, 'true');
+    }
+    playTestSound();
   };
 
   // Real-clock 250ms ticker so countdown stays exact even across background tabs
@@ -218,43 +262,43 @@ export default function App() {
       const current = Date.now();
       setNowMs(current);
 
-      setRunningTimers((prev) => {
-        const entries = Object.values(prev);
-        if (entries.length === 0) return prev;
+      const entries = Object.values(runningTimersRef.current);
+      if (entries.length === 0) return;
 
-        const expired: RunningTimer[] = [];
-        const nextTimers: Record<number, RunningTimer> = {};
+      const expired: RunningTimer[] = [];
+      const nextTimers: Record<number, RunningTimer> = {};
 
-        entries.forEach((timer) => {
-          if (timer.endAt <= current) {
-            expired.push(timer);
-          } else {
-            nextTimers[timer.carId] = timer;
-          }
-        });
-
-        if (expired.length === 0) return prev;
-
-        setTimeUpAlerts((prevAlerts) => {
-          const filtered = prevAlerts.filter(
-            (a) => !expired.some((e) => e.carId === a.carId)
-          );
-          const added: TimeUpAlert[] = expired.map((e) => ({
-            carId: e.carId,
-            carName: `CAR ${e.carId}`,
-            durationMinutes: e.durationMinutes,
-            endedAt: new Date(current).toLocaleTimeString(),
-          }));
-          return [...filtered, ...added];
-        });
-
-        startTimeUpAlarm(soundEnabled);
-        return nextTimers;
+      entries.forEach((timer) => {
+        if (timer.endAt <= current) {
+          expired.push(timer);
+        } else {
+          nextTimers[timer.carId] = timer;
+        }
       });
+
+      if (expired.length === 0) return;
+
+      runningTimersRef.current = nextTimers;
+      setRunningTimers(nextTimers);
+
+      setTimeUpAlerts((prevAlerts) => {
+        const filtered = prevAlerts.filter(
+          (a) => !expired.some((e) => e.carId === a.carId)
+        );
+        const added: TimeUpAlert[] = expired.map((e) => ({
+          carId: e.carId,
+          carName: `CAR ${e.carId}`,
+          durationMinutes: e.durationMinutes,
+          endedAt: new Date(current).toLocaleTimeString(),
+        }));
+        return [...filtered, ...added];
+      });
+
+      startTimeUpAlarm(soundEnabledRef.current);
     }, 250);
 
     return () => clearInterval(interval);
-  }, [soundEnabled]);
+  }, []);
 
   const isKhmer = lang === 'km';
   const activeCount = Object.keys(runningTimers).length;
@@ -276,6 +320,18 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleTestSound}
+              className="min-h-[40px] sm:min-h-[42px] px-2 sm:px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
+              title={isKhmer ? 'សាកសំឡេងរោទ៍' : 'Test Alarm Sound'}
+            >
+              <BellRing className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">
+                {isKhmer ? 'សាកសំឡេង' : 'Test'}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={toggleSound}
