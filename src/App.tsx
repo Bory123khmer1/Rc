@@ -52,30 +52,46 @@ const DEFAULT_DURATIONS: Record<number, number> = {
   6: 5,
 };
 
+function safeGetStorage(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetStorage(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore storage quota or privacy restrictions
+  }
+}
+
 export default function App() {
   const [isDark, setIsDark] = useState<boolean>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.THEME);
+    const saved = safeGetStorage(STORAGE_KEYS.THEME);
     return saved ? saved === 'dark' : true;
   });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
-    localStorage.setItem(STORAGE_KEYS.THEME, isDark ? 'dark' : 'light');
+    safeSetStorage(STORAGE_KEYS.THEME, isDark ? 'dark' : 'light');
   }, [isDark]);
 
   const [lang, setLang] = useState<Language>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.LANG);
+    const saved = safeGetStorage(STORAGE_KEYS.LANG);
     return saved === 'en' ? 'en' : 'km';
   });
 
   const toggleLanguage = () => {
     const next: Language = lang === 'en' ? 'km' : 'en';
     setLang(next);
-    localStorage.setItem(STORAGE_KEYS.LANG, next);
+    safeSetStorage(STORAGE_KEYS.LANG, next);
   };
 
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SOUND);
+    const saved = safeGetStorage(STORAGE_KEYS.SOUND);
     return saved !== 'false';
   });
 
@@ -83,7 +99,7 @@ export default function App() {
     unlockAudioContext();
     setSoundEnabled((prev) => {
       const next = !prev;
-      localStorage.setItem(STORAGE_KEYS.SOUND, String(next));
+      safeSetStorage(STORAGE_KEYS.SOUND, String(next));
       if (!next) stopTimeUpAlarm();
       return next;
     });
@@ -92,9 +108,12 @@ export default function App() {
   const [carDurations, setCarDurations] = useState<Record<number, number>>(
     () => {
       try {
-        const raw = localStorage.getItem(STORAGE_KEYS.DURATIONS);
+        const raw = safeGetStorage(STORAGE_KEYS.DURATIONS);
         if (raw) {
-          return { ...DEFAULT_DURATIONS, ...JSON.parse(raw) };
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            return { ...DEFAULT_DURATIONS, ...parsed };
+          }
         }
       } catch {
         // ignore
@@ -104,28 +123,26 @@ export default function App() {
   );
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.DURATIONS, JSON.stringify(carDurations));
-    } catch {
-      // ignore
-    }
+    safeSetStorage(STORAGE_KEYS.DURATIONS, JSON.stringify(carDurations));
   }, [carDurations]);
 
   const [runningTimers, setRunningTimers] = useState<
     Record<number, RunningTimer>
   >(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEYS.TIMERS);
+      const raw = safeGetStorage(STORAGE_KEYS.TIMERS);
       if (raw) {
         const parsed = JSON.parse(raw) as Record<number, RunningTimer>;
-        const now = Date.now();
-        const valid: Record<number, RunningTimer> = {};
-        Object.values(parsed).forEach((timer) => {
-          if (timer && timer.endAt > now) {
-            valid[timer.carId] = timer;
-          }
-        });
-        return valid;
+        if (parsed && typeof parsed === 'object') {
+          const now = Date.now();
+          const valid: Record<number, RunningTimer> = {};
+          Object.values(parsed).forEach((timer) => {
+            if (timer && typeof timer.endAt === 'number' && timer.endAt > now) {
+              valid[timer.carId] = timer;
+            }
+          });
+          return valid;
+        }
       }
     } catch {
       // ignore
@@ -134,11 +151,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.TIMERS, JSON.stringify(runningTimers));
-    } catch {
-      // ignore
-    }
+    safeSetStorage(STORAGE_KEYS.TIMERS, JSON.stringify(runningTimers));
   }, [runningTimers]);
 
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
