@@ -4,7 +4,6 @@ import {
   Globe,
   Moon,
   OctagonAlert,
-  Play,
   Sun,
   Volume2,
   VolumeX,
@@ -326,7 +325,9 @@ export default function App() {
               className="min-h-[40px] sm:min-h-[42px] px-2.5 sm:px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 active:scale-[0.99] text-white text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <OctagonAlert className="w-4 h-4 shrink-0" />
-              <span className="sm:hidden">{isKhmer ? 'បិទទាំងអស់' : 'STOP ALL'}</span>
+              <span className="sm:hidden">
+                {isKhmer ? 'បិទទាំងអស់' : 'STOP ALL'}
+              </span>
               <span className="hidden sm:inline">
                 {isKhmer ? 'បញ្ឈប់ទាំងអស់' : 'STOP ALL'}
               </span>
@@ -334,6 +335,28 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Non-blocking Top Alert Strip when any car expires (clearly names which cars expired, without blocking other cards) */}
+      {timeUpAlerts.length > 0 && (
+        <div className="bg-red-600 text-white px-3 sm:px-6 py-2.5 shadow-md">
+          <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <BellRing className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 animate-bounce" />
+              <span className="text-xs sm:text-sm font-bold truncate">
+                {isKhmer ? 'អស់ម៉ោងហើយ៖ ' : 'TIME IS UP: '}
+                {timeUpAlerts.map((a) => a.carName).join(', ')}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleDismissTimeUp()}
+              className="min-h-[34px] px-3 py-1 rounded-lg bg-white text-red-700 hover:bg-red-50 text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              {isKhmer ? 'បិទសំឡេងទាំងអស់ (OK)' : 'Stop All Alarms (OK)'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main 6-Car Timer Grid (2 columns on mobile, 3 columns on desktop) */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-2.5 sm:p-6 flex flex-col justify-center">
@@ -351,7 +374,11 @@ export default function App() {
                 carName={`CAR ${carId}`}
                 durationMinutes={carDurations[carId] || 5}
                 remainingSeconds={remainingSeconds}
-                totalSeconds={running ? running.totalSeconds : (carDurations[carId] || 5) * 60}
+                totalSeconds={
+                  running
+                    ? running.totalSeconds
+                    : (carDurations[carId] || 5) * 60
+                }
                 isTimeUpAlert={timeUpAlerts.some((a) => a.carId === carId)}
                 lang={lang}
                 onSelectDuration={handleSelectDuration}
@@ -363,76 +390,6 @@ export default function App() {
           })}
         </div>
       </main>
-
-      {/* Time-Up Popup Alert Modal + Repeating Sound Alarm */}
-      {timeUpAlerts.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl border-2 border-red-500 bg-white dark:bg-zinc-900 p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 animate-bounce">
-                <BellRing className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
-                  {isKhmer ? 'អស់ម៉ោងលេងហើយ!' : 'TIME IS UP!'}
-                </h2>
-                <p className="text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1.5 mt-0.5">
-                  <Volume2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    {isKhmer
-                      ? 'នាឡិកាបានរាប់ដល់ 00:00 ហើយ'
-                      : 'Countdown timer reached 00:00'}
-                  </span>
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2.5 max-h-60 overflow-y-auto">
-              {timeUpAlerts.map((alertItem) => (
-                <div
-                  key={alertItem.carId}
-                  className="rounded-xl border border-red-500/40 bg-red-950/10 dark:bg-red-950/30 p-4 flex items-center justify-between gap-3"
-                >
-                  <div>
-                    <div className="text-lg font-bold text-zinc-900 dark:text-white">
-                      {alertItem.carName}
-                    </div>
-                    <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                      {isKhmer ? 'រយៈពេល៖' : 'Duration:'}{' '}
-                      <span className="font-mono font-bold text-zinc-900 dark:text-white">
-                        {alertItem.durationMinutes} {isKhmer ? 'នាទី' : 'min'}
-                      </span>{' '}
-                      · {alertItem.endedAt}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleStart(alertItem.carId)}
-                    className="min-h-[42px] px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current shrink-0" />
-                    <span>{isKhmer ? 'លេងម្តងទៀត' : 'Start Again'}</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleDismissTimeUp()}
-              className="w-full min-h-[52px] px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 active:scale-[0.99] text-white text-base font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-            >
-              <BellRing className="w-5 h-5 shrink-0" />
-              <span>
-                {isKhmer
-                  ? 'បិទសំឡេងរោទ៍ និង យល់ព្រម (OK)'
-                  : 'Stop Alarm & Dismiss (OK)'}
-              </span>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
