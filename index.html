@@ -15,6 +15,10 @@
   </head>
   <body class="bg-neutral-950 text-neutral-100 antialiased selection:bg-neutral-800 selection:text-white">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script
+      type="module"
+      src="/src/main.tsx"
+      onerror="if(location.hostname.endsWith('github.io')&&!location.pathname.includes('/docs')){location.replace(location.pathname.replace(/\/?$/,'/')+'docs/');}"
+    ></script>
   </body>
 </html>

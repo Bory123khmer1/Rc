@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>RC Timer</title>
+    <script>
+      (function () {
+        var parts = location.pathname.split('/').filter(Boolean);
+        var repoBase = parts.length > 0 ? '/' + parts[0] + '/' : '/';
+        location.replace(repoBase + 'docs/');
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>
